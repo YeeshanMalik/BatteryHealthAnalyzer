@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Battery Cell Health Diagnostics</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #dcdfe3;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+}
+
+body.dark {
+    --bg: #0f172a;
+    --card: #020617;
+    --border: #1e293b;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    max-width: 1150px;
+    margin: auto;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 28px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cell-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+}
+
+.toggle-bar {
+    display: flex;
+    gap: 12px;
+}
+
+button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 10px 18px;
+}
+
+label {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+input, select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.bar {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--success), #16a34a);
+}
+
+.battery {
+    width: 260px;
+    height: 48px;
+    border: 3px solid #111;
+    border-radius: 6px;
+    padding: 3px;
+}
+
+.battery-level {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 1.2s ease-in-out;
+    background:
+    {% if soh and soh < 50 %}var(--danger)
+    {% elif soh and soh < 80 %}var(--warn)
+    {% else %}var(--success)
+    {% endif %};
+}
+
+@media print {
+    body { background: white; }
+    .toggle-bar, button { display: none; }
+    .card { box-shadow: none; page-break-inside: avoid; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<<div class="card header">
+    <div>
+        <h2>Battery Cell Characterization</h2>
+        <div class="cell-id">Cell ID: {{ cell_id }}</div>
+    </div>
+    <img src="{{ barcode }}" width="240">
+     <div class="toggle-bar">
+
+    </div>
+</div>
+
+    <div class="toggle-bar">
+        <button class="secondary" onclick="toggleTheme()">🌙 Dark</button>
+        <button class="secondary" onclick="window.print()">📄 PDF</button>
+    </div>
+</div>
+
+
+<form action="/analyze" method="post" enctype="multipart/form-data">
+<div class="card">
+<h3>Meta Information</h3>
+<div class="grid">
+<label>Cell Condition</label>
+<select name="condition">
+<option>New</option>
+<option selected>Recycled</option>
+</select>
+
+<label>Manufacturer</label>
+<input name="manufacturer" value="{{ meta.manufacturer | default('Molicel') }}">
+
+<label>Model</label>
+<input name="model" value="{{ meta.model | default('INR21700-P45B') }}">
+
+<label>Type</label>
+<input name="type_" value="{{ meta.type | default('Li-ion') }}">
+
+<label>Form Factor</label>
+<input name="form_factor" value="{{ meta.form_factor | default('Cylindrical 21700') }}">
+
+<label>Mass (g)</label>
+<input type="number" step="0.01" name="mass" value="{{ meta.mass | default(70) }}">
+
+<label>Height (mm)</label>
+<input type="number" step="0.01" name="height" value="{{ meta.height | default(70.15) }}">
+
+<label>Diameter (mm)</label>
+<input type="number" step="0.01" name="diameter" value="{{ meta.diameter | default(21.55) }}">
+
+<label>Volume (cm³)</label>
+<input type="number" step="0.01" name="volume" value="{{ meta.volume | default(25.59) }}">
+</div>
+</div>
+<div class="card">
+<h3>Electrical Parameters</h3>
+<div class="grid">
+<label>Nominal Voltage (V)</label>
+<input type="number" step="0.01" name="nominal_voltage" value="{{ meta.nominal_voltage | default(3.6) }}">
+
+<label>Nominal Energy (Wh)</label>
+<input type="number" step="0.01" name="nominal_energy" value="{{ meta.nominal_energy | default(16.2) }}">
+
+<label>Charge Capacity (Ah)</label>
+<input type="number" step="0.01" name="nominal_capacity" value="{{ meta.nominal_capacity | default(4.5) }}">
+
+<label>Voltage Range</label>
+<input name="voltage_range" value="{{ meta.voltage_range | default('2.5–4.2') }}">
+
+<label>Current (Continuous)</label>
+<input type="number" step="0.01" name="current_cont" value="{{ meta.current_cont | default(8.61) }}">
+
+<label>Current (Peak)</label>
+<input type="number" step="0.01" name="current_peak" value="{{ meta.current_peak | default(17.5) }}">
+
+<label>Power (Continuous)</label>
+<input type="number" step="0.01" name="power_cont" value="{{ meta.power_cont | default(25.6) }}">
+
+<label>Power (Peak)</label>
+<input type="number" step="0.01" name="power_peak" value="{{ meta.power_peak | default(50.0) }}">
+</div>
+</div>
+
+<!-- META + ELECTRICAL SECTIONS UNCHANGED -->
+<!-- (your pasted content remains exactly as-is here) -->
+
+<div class="card">
+<h3>Uploads</h3>
+<input type="file" name="image_file" required><br><br>
+<input type="file" name="csv_file" required><br><br>
+<button type="submit">Run Analysis</button>
+</div>
+
+</form>
+
+{% if params %}
+
+<div class="card">
+<h3>Equivalent Circuit Parameters</h3>
+<table>
+<tr><th>Parameter</th><th>Value</th><th>Health</th></tr>
+{% for k, v in params.items() %}
+<tr>
+<td>{{ k }}</td>
+<td>{{ v.value }}</td>
+<td><div class="bar" style="width: {{ v.indicator }}%"></div></td>
+</tr>
+{% endfor %}
+</table>
+</div>
+<div class="card">
+<h3>Equivalent Circuit Model</h3>
+<img src="{{ circuit_img }}" style="width:40%;">
+<div class="footer-note">
+R = Resistance · CPE = Constant Phase Element · W = Warburg Impedance
+</div>
+</div>
+
+<div class="card">
+<h3>State of Health</h3>
+<p style="font-size:22px;"><b>{{ soh }}%</b></p>
+<div class="battery">
+    <div id="soh-bar" class="battery-level"></div>
+</div>
+</div>
+
+{% if history %}
+<div class="card">
+<h3>Comparison View</h3>
+<table>
+<tr><th>Cell</th><th>SOH</th><th>Rb</th><th>R_CT</th></tr>
+{% for h in history %}
+<tr>
+<td>{{ h.cell_id }}</td>
+<td>{{ h.soh }}%</td>
+<td>{{ h.Rb }}</td>
+<td>{{ h.R_CT }}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+{% endif %}
+
+<div class="card">
+<h3>Nyquist Plot</h3>
+{{ nyquist | safe }}
+</div>
+
+{% endif %}
+
+<div class="card plot-card">
+<h3>Bode Plot</h3>
+{{ bode | safe }}
+</div>
+
+<script>
+function toggleTheme() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
+}
+
+if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark");
+}
+
+window.addEventListener("load", () => {
+    const bar = document.getElementById("soh-bar");
+    if (bar) bar.style.width = "{{ soh }}%";
+});
+</script>
+
+</body>
+</html>
