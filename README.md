@@ -16,6 +16,25 @@ A FastAPI-based web application for lithium-ion battery health assessment using 
 - **Frontend:** HTML, CSS, Jinja2
 - **Visualization:** Plotly
 
+##Directory Structure
+battery_assignment/
+├── backend/
+│   ├── main.py              # FastAPI app
+│   ├── eis.py               # EIS processing & SOH logic
+│   ├── plots.py             # Interactive Plotly plots
+│   ├── schematic.py         # Equivalent circuit rendering
+│   └── utils.py             # Helpers
+│
+├── templates/
+│   └── index.html           # Single-page frontend
+│
+├── static/
+│   └── generated plots & images
+│
+├── requirements.txt
+└── README.md
+
+
 ## Run
 ```bash
 uvicorn backend.main:app --reload
